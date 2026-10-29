@@ -1,7 +1,17 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Button, Card, Typography, useThemeColor } from "heroui-native";
 import type { JSX } from "react";
-import { View } from "react-native";
+import { useState } from "react";
+import { FormProvider, useForm } from "react-hook-form";
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
+import { z } from "zod";
+
+import { FormInput } from "@/components/form/form-input";
+import { FormInputOtp } from "@/components/form/form-input-otp";
+import { FormPasswordInput } from "@/components/form/form-password-input";
+import { FormTextArea } from "@/components/form/form-text-area";
+import { Lock, Mail, User } from "lucide-react-native";
 
 function HeroUILogo({ tintColor }: { tintColor: string }): JSX.Element {
   return (
@@ -30,21 +40,160 @@ function HeroUILogo({ tintColor }: { tintColor: string }): JSX.Element {
   );
 }
 
+// ----------------------------------------------------
+// 1. Zod Validation Schema
+// ----------------------------------------------------
+const signUpSchema = z.object({
+  fullName: z.string().min(1, "Full name is required").min(3, "Name must be at least 3 characters"),
+  email: z.string().min(1, "Email is required").email("Please enter a valid email address"),
+  password: z
+    .string()
+    .min(1, "Password is required")
+    .min(6, "Password must be at least 6 characters")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[0-9]/, "Password must contain at least one number"),
+  bio: z.string().max(200, "Bio cannot exceed 200 characters").optional(),
+  otp: z
+    .string()
+    .length(6, "OTP must be exactly 6 digits")
+    .regex(/^\d+$/, "OTP must contain only numbers")
+    .optional(),
+});
+
+type SignUpFormData = z.infer<typeof signUpSchema>;
+
 export default function HomeScreen(): JSX.Element {
-  const themeColorForeground = useThemeColor("foreground");
+  const foregroundColor = useThemeColor("foreground");
+  const iconColor = useThemeColor("muted");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // --------------------------------------------------
+  // 2. React Hook Form Setup with Zod Resolver
+  // --------------------------------------------------
+  const methods = useForm<SignUpFormData>({
+    resolver: zodResolver(signUpSchema),
+    defaultValues: {
+      fullName: "",
+      email: "",
+      password: "",
+      bio: "",
+      otp: "",
+    },
+    mode: "onTouched",
+  });
+
+  const {
+    handleSubmit,
+    reset,
+    formState: { isSubmitting: formIsSubmitting },
+  } = methods;
+
+  const onSubmit = async (data: SignUpFormData) => {
+    setIsSubmitting(true);
+    // Simulate API call
+    setTimeout(() => {
+      setIsSubmitting(false);
+      Alert.alert(
+        "Registration Successful! 🎉",
+        `Welcome, ${data.fullName}!\nEmail: ${data.email}`,
+        [
+          {
+            text: "Reset Form",
+            onPress: () => reset(),
+          },
+          { text: "OK" },
+        ]
+      );
+    }, 800);
+  };
 
   return (
-    <View className="flex-1 bg-background justify-center px-6">
-      <Card className="items-center gap-8">
-        <HeroUILogo tintColor={themeColorForeground} />
-        <Typography.Paragraph className="text-center">
-          A modern starter for React Native, preconfigured with HeroUI Native, Uniwind, and Expo
-          Router. Edit{" "}
-          <Typography.Paragraph className="font-semibold">app/index.tsx</Typography.Paragraph> and
-          watch it reload.
-        </Typography.Paragraph>
-        <Button className="w-full">Get started</Button>
-      </Card>
-    </View>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      className="flex-1 bg-background"
+    >
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        className="flex-1"
+        contentContainerClassName="flex-grow justify-center px-6 py-12"
+      >
+        <Card className="p-6 gap-6 shadow-sm">
+          {/* Header */}
+          <View className="items-center gap-2">
+            <HeroUILogo tintColor={foregroundColor} />
+            <Typography.Heading className="text-xl font-bold mt-2 text-center">
+              Create an Account
+            </Typography.Heading>
+            <Typography.Paragraph className="text-sm text-center text-muted">
+              Built with HeroUI Native InputGroup, React Hook Form, and Zod
+            </Typography.Paragraph>
+          </View>
+
+          {/* Form Context Provider */}
+          <FormProvider {...methods}>
+            <View className="gap-4">
+              {/* Full Name Field */}
+              <FormInput
+                name="fullName"
+                label="Full Name"
+                placeholder="e.g. John Doe"
+                isRequired
+                prefix={<User size={18} color={iconColor} />}
+                autoCapitalize="words"
+              />
+
+              {/* Email Field */}
+              <FormInput
+                name="email"
+                label="Email Address"
+                placeholder="you@example.com"
+                isRequired
+                prefix={<Mail size={18} color={iconColor} />}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+
+              {/* Password Field with built-in toggle */}
+              <FormPasswordInput
+                name="password"
+                label="Password"
+                placeholder="Enter your password"
+                isRequired
+                prefix={<Lock size={18} color={iconColor} />}
+                description="At least 6 characters with 1 uppercase & 1 number"
+                autoCapitalize="none"
+              />
+
+              {/* Bio / Message TextArea Field */}
+              <FormTextArea
+                name="bio"
+                label="Bio"
+                placeholder="Tell us a little about yourself..."
+                description="Optional, maximum 200 characters"
+                numberOfLines={3}
+              />
+
+              {/* OTP Input Field */}
+              <FormInputOtp
+                name="otp"
+                label="Verification Code (OTP)"
+                description="Enter the 6-digit code sent to your email"
+                maxLength={6}
+              />
+            </View>
+
+            {/* Submit Button */}
+            <Button
+              className="w-full mt-2"
+              isDisabled={isSubmitting || formIsSubmitting}
+              onPress={() => void handleSubmit(onSubmit)()}
+            >
+              {isSubmitting ? "Submitting..." : "Sign Up"}
+            </Button>
+          </FormProvider>
+        </Card>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
