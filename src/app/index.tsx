@@ -7,9 +7,11 @@ import { Alert, KeyboardAvoidingView, Platform, ScrollView, View } from "react-n
 import Svg, { Path } from "react-native-svg";
 import { z } from "zod";
 
+import { FormCheckbox } from "@/components/form/form-checkbox";
 import { FormInput } from "@/components/form/form-input";
 import { FormInputOtp } from "@/components/form/form-input-otp";
 import { FormPasswordInput } from "@/components/form/form-password-input";
+import { FormRadioGroup } from "@/components/form/form-radio-group";
 import { FormTextArea } from "@/components/form/form-text-area";
 import { Lock, Mail, User } from "lucide-react-native";
 
@@ -58,6 +60,12 @@ const signUpSchema = z.object({
     .length(6, "OTP must be exactly 6 digits")
     .regex(/^\d+$/, "OTP must contain only numbers")
     .optional(),
+  accountType: z.enum(["personal", "business"], {
+    error: "Please select an account type",
+  }),
+  agreeToTerms: z.boolean().refine((val) => val === true, {
+    message: "You must accept the terms and conditions",
+  }),
 });
 
 type SignUpFormData = z.infer<typeof signUpSchema>;
@@ -78,6 +86,8 @@ export default function HomeScreen(): JSX.Element {
       password: "",
       bio: "",
       otp: "",
+      accountType: "personal",
+      agreeToTerms: false,
     },
     mode: "onTouched",
   });
@@ -180,6 +190,34 @@ export default function HomeScreen(): JSX.Element {
                 label="Verification Code (OTP)"
                 description="Enter the 6-digit code sent to your email"
                 maxLength={6}
+              />
+
+              {/* Account Type RadioGroup */}
+              <FormRadioGroup
+                name="accountType"
+                label="Account Type"
+                description="Select your account category"
+                isRequired
+                options={[
+                  {
+                    value: "personal",
+                    label: "Personal Account",
+                    description: "For individual users and creators",
+                  },
+                  {
+                    value: "business",
+                    label: "Business Account",
+                    description: "For companies and developer teams",
+                  },
+                ]}
+              />
+
+              {/* Agree to terms Checkbox */}
+              <FormCheckbox
+                name="agreeToTerms"
+                label="I agree to the Terms & Privacy Policy"
+                description="By signing up, you agree to our terms of service."
+                isRequired
               />
             </View>
 
